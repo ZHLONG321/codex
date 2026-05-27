@@ -318,6 +318,19 @@ pub struct ModelInfo {
     pub used_fallback_model_metadata: bool,
     #[serde(default)]
     pub supports_search_tool: bool,
+    /// Whether the model returns `reasoning_content` in Chat Completions responses
+    /// (used by DeepSeek V4, MiMo series, etc.).
+    #[serde(default)]
+    pub supports_reasoning_content: bool,
+    /// Whether the request requires `"thinking": {"type": "enabled"}` in
+    /// `extra_body` to activate reasoning (MiMo series).
+    #[serde(default)]
+    pub requires_thinking_param: bool,
+    /// Whether `reasoning_content` must be included on assistant messages that
+    /// contain tool_calls when sending them back in subsequent requests.
+    /// Omitting it causes a 400 error from some providers.
+    #[serde(default)]
+    pub requires_reasoning_passback: bool,
 }
 
 impl ModelInfo {

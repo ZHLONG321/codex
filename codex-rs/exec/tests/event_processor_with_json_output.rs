@@ -251,7 +251,7 @@ fn empty_reasoning_items_are_ignored() {
             item: ThreadItem::Reasoning {
                 id: "reasoning-1".to_string(),
                 summary: Vec::new(),
-                content: vec!["raw reasoning".to_string()],
+                content: Vec::new(),
             },
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
@@ -265,6 +265,37 @@ fn empty_reasoning_items_are_ignored() {
             events: Vec::new(),
             status: CodexStatus::Running,
         }
+    );
+}
+
+#[test]
+fn reasoning_with_content_only_is_emitted() {
+    let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
+
+    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
+        ItemCompletedNotification {
+            item: ThreadItem::Reasoning {
+                id: "reasoning-1".to_string(),
+                summary: Vec::new(),
+                content: vec!["raw reasoning".to_string()],
+            },
+            thread_id: "thread-1".to_string(),
+            turn_id: "turn-1".to_string(),
+            completed_at_ms: 0,
+        },
+    ));
+
+    assert_eq!(collected.events.len(), 1);
+    assert_eq!(
+        collected.events[0],
+        ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            item: ExecThreadItem {
+                id: "item_0".to_string(),
+                details: ThreadItemDetails::Reasoning(ReasoningItem {
+                    text: "raw reasoning".to_string(),
+                }),
+            },
+        })
     );
 }
 

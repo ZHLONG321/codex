@@ -309,3 +309,159 @@ impl Stream for ResponseStream {
         self.rx_event.poll_recv(cx)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Chat Completions API types (used by models that speak the `/v1/chat/completions`
+// wire protocol — DeepSeek V4, MiMo series, etc.)
+// ---------------------------------------------------------------------------
+
+/// A single message in the Chat Completions format.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ChatMessage {
+    #[serde(default)]
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ChatToolCall>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+/// A tool call within a Chat Completions assistant message.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatToolCall {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub call_type: String,
+    pub function: ChatFunctionCall,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatFunctionCall {
+    pub name: String,
+    pub arguments: String,
+}
+
+/// Request body for the Chat Completions API.
+#[derive(Debug, Clone, Serialize)]
+pub struct ChatCompletionsRequest {
+    pub model: String,
+    pub messages: Vec<ChatMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<serde_json::Value>,
+    pub stream: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    /// Provider-specific extra body fields (e.g. `{"thinking": {"type": "enabled"}}`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extra_body: Option<serde_json::Value>,
+}
+
+impl ChatCompletionsRequest {
+    /// Serialize to JSON, flattening `extra_body` keys into the top-level object.
+    pub fn to_value(&self) -> serde_json::Result<serde_json::Value> {
+        let mut value = serde_json::to_value(self)?;
+        if let Some(extra) = self.extra_body.as_ref() {
+            if let (Some(obj), Some(extra_obj)) =
+                (value.as_object_mut(), extra.as_object())
+            {
+                for (k, v) in extra_obj {
+                    obj.insert(k.clone(), v.clone());
+                }
+            }
+        }
+        // Remove the `extra_body` key itself since its contents are now flattened.
+        if let Some(obj) = value.as_object_mut() {
+            obj.remove("extra_body");
+        }
+        Ok(value)
+    }
+}
+
+/// Non-streaming Chat Completions response.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatCompletionsResponse {
+    pub id: Option<String>,
+    pub choices: Vec<ChatCompletionsChoice>,
+    pub usage: Option<ChatCompletionsUsage>,
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatCompletionsChoice {
+    pub index: i64,
+    pub message: ChatMessage,
+    #[serde(default)]
+    pub finish_reason: Option<String>,
+}
+
+/// Streaming Chat Completions chunk (SSE `data:` line).
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatCompletionsChunk {
+    pub id: Option<String>,
+    pub choices: Vec<ChatCompletionsStreamChoice>,
+    pub usage: Option<ChatCompletionsUsage>,
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatCompletionsStreamChoice {
+    pub index: i64,
+    #[serde(default)]
+    pub delta: ChatMessage,
+    #[serde(default)]
+    pub finish_reason: Option<String>,
+}
+
+/// Token usage reported by Chat Completions.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChatCompletionsUsage {
+    pub prompt_tokens: i64,
+    pub completion_tokens: i64,
+    pub total_tokens: i64,
+    #[serde(default)]
+    pub prompt_tokens_details: Option<PromptTokensDetails>,
+    #[serde(default)]
+    pub completion_tokens_details: Option<CompletionTokensDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PromptTokensDetails {
+    #[serde(default)]
+    pub cached_tokens: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CompletionTokensDetails {
+    #[serde(default)]
+    pub reasoning_tokens: i64,
+}
+
+impl From<ChatCompletionsUsage> for TokenUsage {
+    fn from(usage: ChatCompletionsUsage) -> Self {
+        TokenUsage {
+            input_tokens: usage.prompt_tokens,
+            cached_input_tokens: usage
+                .prompt_tokens_details
+                .map(|d| d.cached_tokens)
+                .unwrap_or(0),
+            output_tokens: usage.completion_tokens,
+            reasoning_output_tokens: usage
+                .completion_tokens_details
+                .map(|d| d.reasoning_tokens)
+                .unwrap_or(0),
+            total_tokens: usage.total_tokens,
+        }
+    }
+}

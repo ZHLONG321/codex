@@ -147,8 +147,14 @@ impl EventProcessorWithJsonOutput {
                 id: make_id(),
                 details: ThreadItemDetails::AgentMessage(AgentMessageItem { text }),
             }),
-            ThreadItem::Reasoning { summary, .. } => {
-                let text = summary.join("\n");
+            ThreadItem::Reasoning {
+                summary, content, ..
+            } => {
+                let text = if summary.iter().all(|s| s.trim().is_empty()) {
+                    content.join("\n")
+                } else {
+                    summary.join("\n")
+                };
                 if text.trim().is_empty() {
                     return None;
                 }
@@ -342,8 +348,9 @@ impl EventProcessorWithJsonOutput {
     }
 
     fn map_completed_item_mut(&mut self, item: ThreadItem) -> Option<ExecThreadItem> {
-        if let ThreadItem::Reasoning { summary, .. } = &item
+        if let ThreadItem::Reasoning { summary, content, .. } = &item
             && summary.join("\n").trim().is_empty()
+            && content.join("\n").trim().is_empty()
         {
             return None;
         }

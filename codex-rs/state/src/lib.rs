@@ -74,7 +74,7 @@ pub const SQLITE_HOME_ENV: &str = "CODEX_SQLITE_HOME";
 
 pub const LOGS_DB_FILENAME: &str = "logs_2.sqlite";
 pub const GOALS_DB_FILENAME: &str = "goals_1.sqlite";
-pub const STATE_DB_FILENAME: &str = "state_5.sqlite";
+pub const STATE_DB_FILENAME: &str = "state_6.sqlite";
 
 /// Errors encountered during DB operations. Tags: [stage]
 pub const DB_ERROR_METRIC: &str = "codex.db.error";

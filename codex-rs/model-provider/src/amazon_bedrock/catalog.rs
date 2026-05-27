@@ -77,6 +77,9 @@ fn gpt_5_4_cmb_bedrock_model(priority: i32) -> ModelInfo {
         input_modalities: vec![InputModality::Text, InputModality::Image],
         used_fallback_model_metadata: false,
         supports_search_tool: true,
+    supports_reasoning_content: false,
+    requires_thinking_param: false,
+    requires_reasoning_passback: false,
     }
 }
 
@@ -119,6 +122,9 @@ fn bedrock_oss_model(slug: &str, display_name: &str, priority: i32) -> ModelInfo
         input_modalities: vec![InputModality::Text],
         used_fallback_model_metadata: false,
         supports_search_tool: false,
+    supports_reasoning_content: false,
+    requires_thinking_param: false,
+    requires_reasoning_passback: false,
     }
 }
 
